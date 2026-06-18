@@ -1,0 +1,14 @@
+# Logs
+web_log.txt
+*.log
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*~
+
+# Local env overrides (keep network.env.example if added later)
+config/network.env.local

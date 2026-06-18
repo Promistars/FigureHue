@@ -1,0 +1,16 @@
+[Unit]
+Description=Palette Studio Web
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=INSTALL_DIR
+ExecStart=INSTALL_DIR/scripts/run_server.sh
+EnvironmentFile=-INSTALL_DIR/config/network.env
+Restart=no
+StandardOutput=append:INSTALL_DIR/web_log.txt
+StandardError=append:INSTALL_DIR/web_log.txt
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Palette Studio v1.0 — 论文作图配色提取器</title>
+  <meta name="application-name" content="Palette Studio" />
+  <meta name="version" content="1.0.0" />
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <div id="page-bg" class="page-bg" hidden aria-hidden="true">
+    <div class="page-bg-image" id="page-bg-image"></div>
+    <div class="page-bg-scrim"></div>
+  </div>
+
+  <header class="header glass">
+    <div class="header-inner">
+      <div class="logo">
+        <span class="logo-icon">◑</span>
+        <div>
+          <h1>Palette Studio</h1>
+          <p class="tagline">从图片提取配色 · 论文作图专用 · v1.0</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button id="btn-save-palette" class="btn btn-secondary" disabled>💾 保存方案</button>
+        <button id="btn-compare" class="btn btn-secondary" disabled>⚖ 对比方案</button>
+      </div>
+    </div>
+  </header>
+
+  <section class="hero">
+    <p>拖入一张参考图，<strong>1 秒</strong>得到可用于 Matplotlib / ggplot2 / LaTeX 的学术配色方案</p>
+  </section>
+
+  <main class="workspace">
+    <!-- Left: Input -->
+    <aside class="panel glass panel-input">
+      <h2 class="panel-title">输入</h2>
+
+      <div id="drop-zone" class="drop-zone" tabindex="0">
+        <div class="drop-zone-content">
+          <span class="drop-icon">🖼</span>
+          <p>拖拽图片到此处</p>
+          <p class="hint">或直接 Ctrl+V 粘贴</p>
+          <input type="file" id="file-input" accept="image/*" hidden />
+        </div>
+      </div>
+
+      <div class="url-input-group">
+        <input type="url" id="url-input" placeholder="粘贴图片 URL..." />
+        <button id="btn-load-url" class="btn btn-small">加载</button>
+      </div>
+
+      <div class="control-group">
+        <label>提取颜色数量</label>
+        <input type="range" id="color-count" min="3" max="8" value="6" />
+        <span id="color-count-val" class="range-val">6</span>
+      </div>
+
+      <div class="control-group checkbox-group">
+        <label><input type="checkbox" id="ignore-bg" checked /> 忽略白/黑/灰背景</label>
+      </div>
+
+      <div class="control-group">
+        <label>风格预设</label>
+        <select id="style-preset">
+          <option value="original">原图提取</option>
+          <option value="nature">Nature 风格</option>
+          <option value="science">Science 风格</option>
+          <option value="morandi">莫兰迪</option>
+          <option value="vibrant">鲜艳海报</option>
+          <option value="print">印刷友好</option>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <label>ColorBrewer 映射</label>
+        <select id="colorbrewer-set">
+          <option value="" selected>不映射（保留提取色）</option>
+          <option value="Set1">Set1 — 吸附最近色</option>
+          <option value="Set2">Set2 — 吸附最近色</option>
+          <option value="Set3">Set3 — 吸附最近色</option>
+          <option value="Paired">Paired — 吸附最近色</option>
+          <option value="Dark2">Dark2 — 吸附最近色</option>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <label>饱和度 <span id="sat-val" class="range-val">0</span></label>
+        <input type="range" id="sat-slider" min="-50" max="50" value="0" />
+      </div>
+
+      <div class="control-group">
+        <label>明度 <span id="bright-val" class="range-val">0</span></label>
+        <input type="range" id="bright-slider" min="-30" max="30" value="0" />
+      </div>
+
+      <button id="btn-reextract" class="btn btn-primary full-width" disabled>🔄 重新提取</button>
+
+      <div class="examples-section">
+        <h3>示例图库</h3>
+        <div id="example-gallery" class="example-gallery"></div>
+      </div>
+    </aside>
+
+    <!-- Center: Palette -->
+    <section class="panel glass panel-palette">
+      <div class="panel-title-row">
+        <h2 class="panel-title">配色方案</h2>
+        <button id="btn-reset-palette" class="btn btn-small" disabled title="清除人工修改，恢复自动提取">↺ 恢复默认</button>
+      </div>
+      <div class="panel-palette-body">
+        <div id="palette-slots" class="palette-slots"></div>
+
+        <div class="gradient-section" id="gradient-section" hidden>
+          <h3>单色渐变 (Heatmap)</h3>
+          <div id="gradient-bar" class="gradient-bar"></div>
+        </div>
+
+        <div class="accessibility-section">
+          <h3>无障碍检测</h3>
+          <div class="a11y-controls">
+            <div class="control-group">
+              <label>色盲模拟</label>
+              <select id="colorblind-select">
+                <option value="normal">正常视觉</option>
+                <option value="protanopia">红色盲</option>
+                <option value="deuteranopia">绿色盲</option>
+                <option value="tritanopia">蓝色盲</option>
+              </select>
+            </div>
+          </div>
+          <div id="a11y-report" class="a11y-report"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Right: Image preview -->
+    <aside class="panel glass panel-preview">
+      <div class="pick-block" id="pick-block" hidden>
+        <div class="pick-block-header">
+          <div class="pick-block-title-wrap">
+            <h3 class="pick-block-title">人工取色</h3>
+            <p class="pick-block-hint">悬停预览 · 点击取色</p>
+          </div>
+          <button id="btn-zoom-pick" class="btn btn-small btn-zoom-pick" title="放大图片取色">🔍 放大取色</button>
+        </div>
+
+        <div id="hover-color-preview" class="hover-color-preview is-idle">
+          <span class="tip-swatch"></span>
+          <span class="tip-info">
+            <code class="tip-hex"></code>
+            <span class="tip-rgb"></span>
+          </span>
+          <span class="tip-hint">等待悬停</span>
+        </div>
+
+        <div id="picked-color" class="picked-color is-idle">
+          <div class="picked-color-main">
+            <span class="picked-label">取色</span>
+            <span class="swatch"></span>
+            <code></code>
+          </div>
+          <div class="picked-color-actions">
+            <label class="picked-target-label">
+              替换色槽
+              <select id="picked-target-slot" class="picked-target-select"></select>
+            </label>
+            <button id="btn-add-picked" class="btn btn-small btn-primary">加入配色</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="preview-block">
+        <h2 class="panel-title">图片预览</h2>
+        <div class="canvas-wrapper" id="canvas-wrapper">
+          <div class="empty-state" id="empty-state">
+            <span>📷</span>
+            <p>上传或选择示例图片</p>
+          </div>
+          <div class="canvas-frame" id="canvas-frame" hidden>
+            <canvas id="image-canvas"></canvas>
+            <div id="sample-markers"></div>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <!-- Preview charts -->
+  <section class="preview-section">
+    <div class="section-header-row">
+      <h2 class="section-title">图表预览</h2>
+      <label class="chart-preview-option checkbox-group">
+        <input type="checkbox" id="grayscale-preview" /> 灰度打印预览
+      </label>
+    </div>
+    <div class="charts-grid">
+      <div class="chart-card glass"><canvas id="chart-bar"></canvas></div>
+      <div class="chart-card glass"><canvas id="chart-line"></canvas></div>
+      <div class="chart-card glass"><canvas id="chart-scatter"></canvas></div>
+      <div class="chart-card glass"><canvas id="chart-heatmap"></canvas></div>
+    </div>
+  </section>
+
+  <!-- Export -->
+  <section class="export-section">
+    <h2 class="section-title">导出</h2>
+    <div class="export-tabs" id="export-tabs"></div>
+    <div class="export-content glass">
+      <pre id="export-code"></pre>
+      <div class="export-actions">
+        <button id="btn-copy-export" class="btn btn-primary">📋 复制</button>
+        <button id="btn-download-export" class="btn btn-secondary">⬇ 下载</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Saved palettes -->
+  <section class="saved-section">
+    <h2 class="section-title">已保存方案</h2>
+    <div id="saved-palettes" class="saved-palettes"></div>
+  </section>
+
+  <!-- Compare modal -->
+  <div id="compare-modal" class="modal" hidden>
+    <div class="modal-content glass">
+      <div class="modal-header">
+        <h3>配色方案对比</h3>
+        <button id="btn-close-compare" class="btn-close">×</button>
+      </div>
+      <div class="compare-selectors">
+        <select id="compare-a"></select>
+        <span>vs</span>
+        <select id="compare-b"></select>
+      </div>
+      <div class="compare-palettes" id="compare-palettes"></div>
+      <div class="chart-card glass compare-chart"><canvas id="chart-compare"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Zoom pick modal -->
+  <div id="zoom-pick-modal" class="modal" hidden>
+    <div class="modal-content glass modal-zoom-pick">
+      <div class="modal-header">
+        <h3>放大取色</h3>
+        <button id="btn-close-zoom-pick" class="btn-close">×</button>
+      </div>
+      <div class="zoom-pick-toolbar">
+        <label class="zoom-pick-scale-label">
+          缩放
+          <input type="range" id="zoom-pick-scale" min="100" max="400" value="200" />
+          <span id="zoom-pick-scale-val" class="range-val">200%</span>
+        </label>
+        <span class="zoom-pick-hint">滚轮可滚动 · 点击选色</span>
+      </div>
+      <div class="zoom-pick-viewport" id="zoom-pick-viewport">
+        <canvas id="zoom-pick-canvas"></canvas>
+      </div>
+      <div id="zoom-hover-preview" class="hover-color-preview" hidden>
+        <span class="tip-swatch"></span>
+        <span class="tip-info">
+          <code class="tip-hex"></code>
+          <span class="tip-rgb"></span>
+        </span>
+        <span class="tip-hint">点击确认取色</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Save modal -->
+  <div id="save-modal" class="modal" hidden>
+    <div class="modal-content glass modal-small">
+      <div class="modal-header">
+        <h3>保存配色方案</h3>
+        <button id="btn-close-save" class="btn-close">×</button>
+      </div>
+      <input type="text" id="save-name" placeholder="方案名称，如 Fig3 细胞类型" />
+      <button id="btn-confirm-save" class="btn btn-primary full-width">确认保存</button>
+    </div>
+  </div>
+
+  <footer class="footer glass">
+    <p>Palette Studio v1.0 · 纯前端运行，图片不会上传到服务器</p>
+    <p class="hint">Python: <code>plt.rcParams['axes.prop_cycle']</code> · R: <code>scale_fill_manual()</code> · LaTeX: <code>\definecolor</code></p>
+  </footer>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <script type="module" src="js/main.js?v=29"></script>
+</body>
+</html>
