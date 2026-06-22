@@ -3,9 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Palette Studio v1.0 — 论文作图配色提取器</title>
-  <meta name="application-name" content="Palette Studio" />
-  <meta name="version" content="1.0.0" />
+  <title>FigureHue v1.1 — 论文作图配色提取器</title>
+  <meta name="application-name" content="FigureHue" />
+  <meta name="version" content="1.1.0" />
+  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=1" />
+  <link rel="shortcut icon" href="favicon.svg?v=1" />
   <link rel="stylesheet" href="css/styles.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
@@ -20,13 +22,15 @@
   <header class="header glass">
     <div class="header-inner">
       <div class="logo">
-        <span class="logo-icon">◑</span>
+        <img class="logo-icon" src="favicon.svg?v=1" alt="" width="56" height="56" />
         <div>
-          <h1>Palette Studio</h1>
-          <p class="tagline">从图片提取配色 · 论文作图专用 · v1.0</p>
+          <h1>FigureHue</h1>
+          <p class="tagline">从图片提取配色 · 论文作图专用 · v1.1</p>
         </div>
       </div>
       <div class="header-actions">
+        <button id="btn-import-palette" class="btn btn-secondary">⇩ 导入色板</button>
+        <button id="btn-share-palette" class="btn btn-secondary" disabled>↗ 分享链接</button>
         <button id="btn-save-palette" class="btn btn-secondary" disabled>💾 保存方案</button>
         <button id="btn-compare" class="btn btn-secondary" disabled>⚖ 对比方案</button>
       </div>
@@ -273,6 +277,25 @@
     </div>
   </div>
 
+  <!-- Import modal -->
+  <div id="import-modal" class="modal" hidden>
+    <div class="modal-content glass modal-small">
+      <div class="modal-header">
+        <h3>导入色板</h3>
+        <button id="btn-close-import" class="btn-close">×</button>
+      </div>
+      <p class="modal-hint">支持 FigureHue JSON、Figma JSON、GIMP GPL 或 HEX 列表。</p>
+      <textarea id="import-palette-text" rows="8" placeholder="#2166AC&#10;#D6604D&#10;#4DAF4A"></textarea>
+      <div class="import-actions">
+        <label class="btn btn-secondary import-file-label">
+          选择文件
+          <input id="import-palette-file" type="file" accept=".json,.gpl,.txt,text/plain,application/json" hidden />
+        </label>
+        <button id="btn-confirm-import" class="btn btn-primary">导入</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Save modal -->
   <div id="save-modal" class="modal" hidden>
     <div class="modal-content glass modal-small">
@@ -286,12 +309,12 @@
   </div>
 
   <footer class="footer glass">
-    <p>Palette Studio v1.0 · 纯前端运行，图片不会上传到服务器</p>
+    <p>FigureHue v1.1 · 纯前端运行，图片不会上传到服务器</p>
     <p class="hint">Python: <code>plt.rcParams['axes.prop_cycle']</code> · R: <code>scale_fill_manual()</code> · LaTeX: <code>\definecolor</code></p>
   </footer>
 
   <div id="toast" class="toast" hidden></div>
 
-  <script type="module" src="js/main.js?v=29"></script>
+  <script type="module" src="js/main.js?v=30"></script>
 </body>
 </html>

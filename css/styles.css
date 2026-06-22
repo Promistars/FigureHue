@@ -98,8 +98,10 @@ body.has-bg {
 }
 
 .logo-icon {
-  font-size: 2rem;
-  line-height: 1;
+  width: 56px;
+  height: 56px;
+  display: block;
+  flex: 0 0 auto;
 }
 
 .logo h1 {
@@ -115,6 +117,8 @@ body.has-bg {
 .header-actions {
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 /* Hero */
@@ -778,6 +782,27 @@ body.has-bg .hero {
   animation: dropIn 0.3s ease backwards;
 }
 
+.palette-slot.dragging {
+  opacity: 0.45;
+}
+
+.palette-slot.drag-over {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-light);
+}
+
+.drag-handle {
+  color: var(--text-muted);
+  cursor: grab;
+  font-size: 1rem;
+  line-height: 1;
+  user-select: none;
+}
+
+.palette-slot:active .drag-handle {
+  cursor: grabbing;
+}
+
 .palette-slot.locked {
   border-color: var(--accent);
   background: rgba(255, 255, 255, 0.75);
@@ -1234,6 +1259,43 @@ body.has-bg .hero {
 
 #save-name {
   margin-bottom: 12px;
+}
+
+#import-palette-text {
+  width: 100%;
+  resize: vertical;
+  min-height: 150px;
+  padding: 10px 12px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.85);
+  color: var(--text);
+  font: 0.8rem/1.55 var(--mono);
+}
+
+#import-palette-text:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-light);
+}
+
+.modal-hint {
+  margin: -4px 0 12px;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.import-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.import-file-label {
+  display: inline-flex;
+  align-items: center;
 }
 
 /* Footer */

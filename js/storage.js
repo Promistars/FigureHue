@@ -1,6 +1,6 @@
 /** localStorage palette persistence */
 
-const STORAGE_KEY = 'palette-studio-saved';
+const STORAGE_KEY = 'figurehue-saved';
 
 export function loadSavedPalettes() {
   try {

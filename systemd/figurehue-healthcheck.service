@@ -1,0 +1,6 @@
+[Unit]
+Description=FigureHue health check and recovery
+
+[Service]
+Type=oneshot
+ExecStart=INSTALL_DIR/figurehue_healthcheck.sh

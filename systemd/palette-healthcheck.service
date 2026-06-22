@@ -1,6 +1,0 @@
-[Unit]
-Description=Palette Studio health check and recovery
-
-[Service]
-Type=oneshot
-ExecStart=INSTALL_DIR/palette_healthcheck.sh

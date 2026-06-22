@@ -1,5 +1,5 @@
 [Unit]
-Description=Palette Studio hourly health check
+Description=FigureHue hourly health check
 
 [Timer]
 OnBootSec=5min

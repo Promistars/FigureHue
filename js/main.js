@@ -25,6 +25,7 @@ import {
 } from './exportFormats.js';
 import { loadSavedPalettes, savePalette, deletePalette } from './storage.js';
 import { renderPreviewCharts, renderCompareCharts, destroyCharts } from './charts.js';
+import { buildShareUrl, parsePaletteText, readSharedPalette } from './paletteExchange.js';
 
 const state = {
   imageData: null,
@@ -257,11 +258,14 @@ function resetToDefaultExtraction() {
   showToast('已恢复默认取色');
 }
 
-function setImageActionButtonsEnabled(enabled) {
-  $('#btn-reextract').disabled = !enabled;
-  $('#btn-reset-palette').disabled = !enabled;
-  $('#btn-save-palette').disabled = !enabled;
-  $('#btn-compare').disabled = !enabled;
+function updateActionButtons() {
+  const hasImage = !!state.imageData;
+  const hasPalette = hasExtractedPalette();
+  $('#btn-reextract').disabled = !hasImage;
+  $('#btn-reset-palette').disabled = !hasImage;
+  $('#btn-save-palette').disabled = !hasPalette;
+  $('#btn-share-palette').disabled = !hasPalette;
+  $('#btn-compare').disabled = !hasPalette;
 }
 
 async function loadImage(src) {
@@ -285,7 +289,7 @@ async function loadImage(src) {
     requestAnimationFrame(syncWorkspacePanelHeights);
 
     await extractAndRender();
-    setImageActionButtonsEnabled(true);
+    updateActionButtons();
     showToast('配色已从图片提取');
   } catch (err) {
     showToast('加载失败: ' + err.message);
@@ -360,6 +364,7 @@ function renderAll() {
   renderAccessibility();
   renderCharts();
   renderExport();
+  updateActionButtons();
   updatePanelEmptyState();
   if (state.sourceCanvas) updatePickedTargetOptions();
   requestAnimationFrame(syncWorkspacePanelHeights);
@@ -380,7 +385,8 @@ function renderPaletteSlots() {
     const role = COLOR_ROLES[i] || `Color ${i + 1}`;
     const textColor = getReadableTextColor(hex);
     return `
-      <div class="palette-slot ${locked ? 'locked' : ''}" data-index="${i}" style="animation-delay:${i * 0.05}s">
+      <div class="palette-slot ${locked ? 'locked' : ''}" data-index="${i}" draggable="true" style="animation-delay:${i * 0.05}s">
+        <span class="drag-handle" title="拖拽排序" aria-hidden="true">⠿</span>
         <div class="swatch" style="background:${hex};color:${textColor}" title="点击复制">${i + 1}</div>
         <div class="info">
           <div class="hex">${hex.toUpperCase()}</div>
@@ -425,7 +431,57 @@ function renderPaletteSlots() {
     });
   });
 
+  setupPaletteDrag(container);
+
   setupPalettePickTargets(container);
+}
+
+function reorderPalette(from, to) {
+  if (from === to || from < 0 || to < 0 || to >= state.rawColors.length) return;
+
+  const locked = state.rawColors.map((_, i) => state.lockedIndices.has(i));
+  const [color] = state.rawColors.splice(from, 1);
+  state.rawColors.splice(to, 0, color);
+
+  if (state.clusters.length === locked.length) {
+    const [cluster] = state.clusters.splice(from, 1);
+    state.clusters.splice(to, 0, cluster);
+  }
+
+  const [wasLocked] = locked.splice(from, 1);
+  locked.splice(to, 0, wasLocked);
+  state.lockedIndices = new Set(locked.flatMap((value, i) => value ? [i] : []));
+  renderAll();
+  showToast('已调整颜色顺序');
+}
+
+function setupPaletteDrag(container) {
+  let dragIndex = -1;
+  const slots = [...container.querySelectorAll('.palette-slot')];
+
+  slots.forEach(slot => {
+    slot.addEventListener('dragstart', (e) => {
+      dragIndex = parseInt(slot.dataset.index, 10);
+      slot.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', String(dragIndex));
+    });
+    slot.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      slot.classList.add('drag-over');
+    });
+    slot.addEventListener('dragleave', () => slot.classList.remove('drag-over'));
+    slot.addEventListener('drop', (e) => {
+      e.preventDefault();
+      const from = dragIndex >= 0 ? dragIndex : parseInt(e.dataTransfer.getData('text/plain'), 10);
+      reorderPalette(from, parseInt(slot.dataset.index, 10));
+    });
+    slot.addEventListener('dragend', () => {
+      dragIndex = -1;
+      slots.forEach(item => item.classList.remove('dragging', 'drag-over'));
+    });
+  });
 }
 
 function setupPalettePickTargets(container) {
@@ -725,7 +781,7 @@ function renderExport() {
 
   const format = EXPORT_FORMATS.find(f => f.id === state.currentExportFormat);
   const colors = getDisplayColors();
-  const meta = { name: 'Palette Studio Export', version: '1.0.0' };
+  const meta = { name: 'FigureHue Export', version: '1.1.0' };
   $('#export-code').textContent = colors.length
     ? format.fn(colors, meta)
     : '# 请先上传图片提取配色';
@@ -1002,9 +1058,80 @@ function setupExport() {
   $('#btn-download-export').addEventListener('click', () => {
     const format = EXPORT_FORMATS.find(f => f.id === state.currentExportFormat);
     const text = $('#export-code').textContent;
-    downloadFile(text, `palette.${format.ext}`);
+    downloadFile(text, `figurehue-palette.${format.ext}`);
     showToast('已下载');
   });
+}
+
+function applyStandalonePalette(colors, message = '色板已导入') {
+  state.imageData = null;
+  state.sourceCanvas = null;
+  state.clusters = [];
+  state.rawColors = [...colors];
+  state.lockedIndices.clear();
+  state.excludedColors.clear();
+  state.pickedColor = null;
+  state.pickedPoint = null;
+
+  $('#style-preset').value = 'original';
+  $('#colorbrewer-set').value = '';
+  $('#sat-slider').value = 0;
+  $('#bright-slider').value = 0;
+  $('#sat-val').textContent = '0';
+  $('#bright-val').textContent = '0';
+  $('#colorblind-select').value = 'normal';
+  if (colors.length >= 3 && colors.length <= 8) {
+    $('#color-count').value = String(colors.length);
+    $('#color-count-val').textContent = String(colors.length);
+  }
+
+  showImagePreview(false);
+  renderAll();
+  showToast(message);
+}
+
+function setupPaletteExchange() {
+  const text = $('#import-palette-text');
+  const fileInput = $('#import-palette-file');
+
+  $('#btn-import-palette').addEventListener('click', () => {
+    text.value = '';
+    fileInput.value = '';
+    openModal('import-modal');
+    text.focus();
+  });
+
+  $('#btn-close-import').addEventListener('click', () => closeModal('import-modal'));
+
+  fileInput.addEventListener('change', async () => {
+    const file = fileInput.files[0];
+    if (!file) return;
+    try {
+      text.value = await file.text();
+      showToast(`已读取 ${file.name}`);
+    } catch {
+      showToast('文件读取失败');
+    }
+  });
+
+  $('#btn-confirm-import').addEventListener('click', () => {
+    try {
+      const colors = parsePaletteText(text.value);
+      applyStandalonePalette(colors, `已导入 ${colors.length} 种颜色`);
+      closeModal('import-modal');
+    } catch (err) {
+      showToast(err.message);
+    }
+  });
+
+  $('#btn-share-palette').addEventListener('click', async () => {
+    const url = buildShareUrl(getDisplayColors());
+    await copyToClipboard(url);
+    showToast('分享链接已复制');
+  });
+
+  const shared = readSharedPalette();
+  if (shared) applyStandalonePalette(shared, `已从分享链接载入 ${shared.length} 种颜色`);
 }
 
 function closeModal(id) {
@@ -1013,7 +1140,7 @@ function closeModal(id) {
 }
 
 function openModal(id) {
-  ['compare-modal', 'save-modal', 'zoom-pick-modal'].forEach(closeModal);
+  ['compare-modal', 'save-modal', 'zoom-pick-modal', 'import-modal'].forEach(closeModal);
   const el = document.getElementById(id);
   if (el) el.hidden = false;
 }
@@ -1030,6 +1157,7 @@ function setupModals() {
       closeModal('compare-modal');
       closeModal('save-modal');
       closeModal('zoom-pick-modal');
+      closeModal('import-modal');
     }
   });
 }
@@ -1111,6 +1239,7 @@ function init() {
   setupControls();
   setupExport();
   setupModals();
+  setupPaletteExchange();
   setupSave();
   setupCompare();
   renderExampleGallery();

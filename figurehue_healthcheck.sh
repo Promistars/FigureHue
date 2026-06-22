@@ -3,7 +3,7 @@
 
 WORKDIR="$(cd "$(dirname "$0")" && pwd)"
 LOG="$WORKDIR/web_log.txt"
-PORT="${PALETTE_PORT:-29997}"
+PORT="${FIGUREHUE_PORT:-29997}"
 WEB_URL="http://127.0.0.1:${PORT}/"
 WEB_TIMEOUT=8
 
@@ -25,6 +25,6 @@ web_ok() {
 if web_ok; then
     log "Web OK ($WEB_URL)"
 else
-    log "Web 探活失败，执行: systemctl --user restart palette-studio.service"
-    systemctl --user restart palette-studio.service
+    log "Web 探活失败，执行: systemctl --user restart figurehue.service"
+    systemctl --user restart figurehue.service
 fi

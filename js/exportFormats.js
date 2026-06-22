@@ -73,7 +73,7 @@ export function exportJson(colors, meta = {}) {
 
 export function exportFigma(colors) {
   return JSON.stringify({
-    name: 'Palette Studio Export',
+    name: 'FigureHue Export',
     colors: colors.map((c, i) => ({
       name: `Color ${i + 1}`,
       color: {
@@ -87,6 +87,15 @@ export function exportFigma(colors) {
   }, null, 2);
 }
 
+export function exportGpl(colors) {
+  const rows = colors.map((c, i) => {
+    const rgb = [c.slice(1, 3), c.slice(3, 5), c.slice(5, 7)]
+      .map(value => String(parseInt(value, 16)).padStart(3, ' '));
+    return `${rgb.join(' ')}\tColor ${i + 1}`;
+  });
+  return ['GIMP Palette', 'Name: FigureHue Export', 'Columns: 8', '#', ...rows].join('\n');
+}
+
 export const EXPORT_FORMATS = [
   { id: 'hex', label: 'HEX 列表', fn: exportHexList, ext: 'txt' },
   { id: 'css', label: 'CSS 变量', fn: exportCss, ext: 'css' },
@@ -96,6 +105,7 @@ export const EXPORT_FORMATS = [
   { id: 'latex', label: 'LaTeX xcolor', fn: exportLatex, ext: 'tex' },
   { id: 'json', label: 'JSON', fn: exportJson, ext: 'json' },
   { id: 'figma', label: 'Figma JSON', fn: exportFigma, ext: 'json' },
+  { id: 'gpl', label: 'GIMP GPL', fn: exportGpl, ext: 'gpl' },
 ];
 
 export async function copyToClipboard(text) {

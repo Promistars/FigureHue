@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
-# Palette Studio — 一键重启（优先 systemd，未安装时回退 nohup）
+# FigureHue — 一键重启（优先 systemd，未安装时回退 nohup）
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
-PORT="${PALETTE_PORT:-8080}"
+PORT="${FIGUREHUE_PORT:-8080}"
 
 echo "=================================================="
-echo " 🎨 Palette Studio (port $PORT)"
+echo " 🎨 FigureHue (port $PORT)"
 echo "=================================================="
 
-if systemctl --user is-enabled palette-studio.service >/dev/null 2>&1; then
-    echo "📦 使用 systemd 重启 palette-studio ..."
-    systemctl --user restart palette-studio.service
+if systemctl --user is-enabled figurehue.service >/dev/null 2>&1; then
+    echo "📦 使用 systemd 重启 figurehue ..."
+    systemctl --user restart figurehue.service
     sleep 1
-    systemctl --user status palette-studio.service --no-pager || true
+    systemctl --user status figurehue.service --no-pager || true
     echo "  👉 本地: http://127.0.0.1:${PORT}"
     echo "=================================================="
     exit 0
