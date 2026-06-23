@@ -1,6 +1,6 @@
 /** K-Means color extraction from image data */
 
-import { rgbToHex, isNeutralBackground, isNeutralHex, colorDistance, hexToRgb } from './colorUtils.js';
+import { rgbToHex, rgbToHsl, isNeutralBackground, isNeutralHex, colorDistance, hexToRgb } from './colorUtils.js';
 
 function distSq(a, b) {
   return (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2;
@@ -8,15 +8,18 @@ function distSq(a, b) {
 
 function dominantColorInit(pixels, k) {
   const bins = new Map();
-  const shift = 3;
 
-  for (const [r, g, b] of pixels) {
-    const key = `${r >> shift},${g >> shift},${b >> shift}`;
+  for (const [r, g, b, weight = 1] of pixels) {
+    const { h, s, l } = rgbToHsl(r, g, b);
+    const hueBin = s < 8 ? 'neutral' : Math.round(h / 18);
+    const satBin = Math.round(s / 18);
+    const lightBin = Math.round(l / 16);
+    const key = `${hueBin},${satBin},${lightBin}`;
     const bin = bins.get(key) || { count: 0, r: 0, g: 0, b: 0 };
-    bin.count++;
-    bin.r += r;
-    bin.g += g;
-    bin.b += b;
+    bin.count += weight;
+    bin.r += r * weight;
+    bin.g += g * weight;
+    bin.b += b * weight;
     bins.set(key, bin);
   }
 
@@ -76,10 +79,11 @@ function kMeans(pixels, k, maxIter = 30) {
     const sums = Array.from({ length: k }, () => [0, 0, 0, 0]);
     for (let i = 0; i < pixels.length; i++) {
       const c = assignments[i];
-      sums[c][0] += pixels[i][0];
-      sums[c][1] += pixels[i][1];
-      sums[c][2] += pixels[i][2];
-      sums[c][3]++;
+      const weight = pixels[i][3] ?? 1;
+      sums[c][0] += pixels[i][0] * weight;
+      sums[c][1] += pixels[i][1] * weight;
+      sums[c][2] += pixels[i][2] * weight;
+      sums[c][3] += weight;
     }
     for (let c = 0; c < k; c++) {
       if (sums[c][3] > 0) {
@@ -93,13 +97,16 @@ function kMeans(pixels, k, maxIter = 30) {
   }
 
   const counts = new Array(k).fill(0);
-  assignments.forEach(a => counts[a]++);
+  for (let i = 0; i < pixels.length; i++) {
+    counts[assignments[i]] += pixels[i][3] ?? 1;
+  }
+  const totalWeight = counts.reduce((a, b) => a + b, 0) || pixels.length;
 
   return centroids
     .map((c, i) => ({
       rgb: c,
       hex: rgbToHex(c[0], c[1], c[2]),
-      weight: counts[i] / pixels.length,
+      weight: counts[i] / totalWeight,
       x: 0,
       y: 0,
     }))
@@ -151,11 +158,33 @@ function samplePixels(imageData, step = 4) {
   const { data, width, height } = imageData;
   const pixels = [];
   const positions = [];
+  const colorAt = (x, y) => {
+    const px = Math.max(0, Math.min(width - 1, x));
+    const py = Math.max(0, Math.min(height - 1, y));
+    const i = (py * width + px) * 4;
+    return [data[i], data[i + 1], data[i + 2], data[i + 3]];
+  };
+
   for (let y = 0; y < height; y += step) {
     for (let x = 0; x < width; x += step) {
       const i = (y * width + x) * 4;
       if (data[i + 3] < 128) continue;
-      pixels.push([data[i], data[i + 1], data[i + 2]]);
+      const r = data[i], g = data[i + 1], b = data[i + 2];
+      const right = colorAt(x + step, y);
+      const down = colorAt(x, y + step);
+      const edge =
+        Math.sqrt((r - right[0]) ** 2 + (g - right[1]) ** 2 + (b - right[2]) ** 2) +
+        Math.sqrt((r - down[0]) ** 2 + (g - down[1]) ** 2 + (b - down[2]) ** 2);
+      const { s, l } = rgbToHsl(r, g, b);
+
+      let weight = 1;
+      if (s >= 12) weight *= 1.2 + Math.min(s, 70) / 100;
+      if (l < 38 && s < 35) weight *= 0.12;
+      if (s < 8) weight *= 0.18;
+      if (l > 90 && s < 18) weight *= 0.12;
+      weight *= Math.max(0.2, 1 - edge / 240);
+
+      pixels.push([r, g, b, weight]);
       positions.push({ x, y });
     }
   }
