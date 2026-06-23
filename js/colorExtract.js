@@ -6,31 +6,56 @@ function distSq(a, b) {
   return (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2;
 }
 
-function kMeansPlusPlusInit(pixels, k) {
-  const centroids = [[...pixels[Math.floor(Math.random() * pixels.length)]]];
-  while (centroids.length < k) {
-    const distances = pixels.map(p => {
-      let min = Infinity;
-      for (const c of centroids) min = Math.min(min, distSq(p, c));
-      return min;
-    });
-    const total = distances.reduce((a, b) => a + b, 0);
-    let r = Math.random() * total;
-    let chosen = pixels[0];
-    for (let i = 0; i < pixels.length; i++) {
-      r -= distances[i];
-      if (r <= 0) { chosen = pixels[i]; break; }
-    }
-    centroids.push([...chosen]);
+function dominantColorInit(pixels, k) {
+  const bins = new Map();
+  const shift = 3;
+
+  for (const [r, g, b] of pixels) {
+    const key = `${r >> shift},${g >> shift},${b >> shift}`;
+    const bin = bins.get(key) || { count: 0, r: 0, g: 0, b: 0 };
+    bin.count++;
+    bin.r += r;
+    bin.g += g;
+    bin.b += b;
+    bins.set(key, bin);
   }
-  return centroids;
+
+  const candidates = [...bins.values()]
+    .map(bin => [
+      Math.round(bin.r / bin.count),
+      Math.round(bin.g / bin.count),
+      Math.round(bin.b / bin.count),
+      bin.count,
+    ])
+    .sort((a, b) => b[3] - a[3]);
+
+  const centroids = [];
+  const minSeedDistanceSq = 24 ** 2;
+
+  for (const candidate of candidates) {
+    if (centroids.length >= k) break;
+    const rgb = candidate.slice(0, 3);
+    const isDistinct = centroids.every(c => distSq(c, rgb) >= minSeedDistanceSq);
+    if (isDistinct || centroids.length === 0) centroids.push(rgb);
+  }
+
+  for (const candidate of candidates) {
+    if (centroids.length >= k) break;
+    const rgb = candidate.slice(0, 3);
+    if (!centroids.some(c => c[0] === rgb[0] && c[1] === rgb[1] && c[2] === rgb[2])) {
+      centroids.push(rgb);
+    }
+  }
+
+  return centroids.slice(0, k);
 }
 
 function kMeans(pixels, k, maxIter = 30) {
   if (pixels.length === 0) return [];
   k = Math.min(k, pixels.length);
 
-  const centroids = kMeansPlusPlusInit(pixels, k);
+  const centroids = dominantColorInit(pixels, k);
+  k = centroids.length;
 
   let assignments = new Array(pixels.length).fill(0);
 

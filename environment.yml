@@ -1,0 +1,5 @@
+name: FigureHue
+channels:
+  - conda-forge
+dependencies:
+  - nodejs
